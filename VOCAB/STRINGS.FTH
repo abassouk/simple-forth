@@ -1,0 +1,144 @@
+VOCABULARY STRINGS IMMEDIATE
+STRINGS DEFINITIONS
+DEC
+
+CHECKS_ON
+
+(LEN ---)
+: STRING <BUILDS DUP C, 0 C, 255 AND 0 C, ALLOT DOES> 1+ ;
+
+hex
+(to from len ---)
+: CMOVE [ 4cdd0301 , 600212d8 , 53806afa , ] ;
+dec
+
+(STRING --- strlen )
+: STRLEN C@ ;
+(STRING --- STRMAX )
+: STRMAX 1- C@ ;
+
+(TOSTR FROMSTR --- ) 
+: STRCOPY >R DUP R> OVER 1- C@ OVER C@ MIN DUP >R 1+ CMOVE R> SWAP C! ;
+
+(TOSTR FROMSTR --- )
+: STRCAT
+  >R DUP STRMAX OVER STRLEN ( TOSTR DIM LEN --- )
+  - R> SWAP            ( TOSTR FROMSTR FREE ---)
+  OVER STRLEN          ( TOSTR FROMSTR FREE FLEN ---)
+  MIN >R               ( TOSTR FROMSTR MINLEN---)
+  OVER DUP STRLEN + 1+ ( TOSTR FROMSTR TOADDR)
+  OVER 1+ R            ( TOSTR FROMSTR TOADDR FROMADDR MINLEN ---)
+  CMOVE DROP           ( TOSTR TLEN ---)
+  R> OVER C@ + swap C! ;
+
+(STR C ---)
+: ADDCHAR OVER DUP C@ OVER 1- C@ <
+  IF
+    DUP C@ + 1+ C! DUP C@ 1+ SWAP C!
+  ELSE
+    DROP 2DROP
+  ENDIF ;
+
+(TOSTR FROMSTR LEN ---)
+: LEFT$ OVER C@ MIN >R OVER 1- C@ R> MIN (TOSTR FROMSTR MINLEN ---)
+  >R 1+ SWAP R OVER C! 1+ SWAP R> CMOVE ;
+
+(STR POS --- C)
+: CPOS SWAP OVER OVER C@ 1- > IF 2DROP 0 ELSE + 1+ C@ ENDIF ;
+
+(TOSTR FROMSTR POS ---)
+: MID$
+  DUP <0 IF DROP 0 ENDIF
+  OVER C@ OVER (TOS FROMS POS FLEN POS ---)
+  - DUP >0 IF  (TOS FROMS POS LEN ---)
+    >R ROT DUP >R ROT ROT R> 1- C@ R> MIN (TOS FROMS POS MINLEN ---)
+    >R + 1+ SWAP R OVER C! 1+ SWAP R> CMOVE
+  ELSE
+    2DROP DROP 0 SWAP C!
+  ENDIF ;
+
+(TOSTR FROMSTR LEN ---)
+: RIGHT$ OVER C@ - NEGATE MID$ ;
+
+( C ---)
+: WAITFORCHAR BEGIN DUP KEY - WHILE REPEAT DROP ;
+
+255 STRING PAD
+
+( --- STR )
+: STR 34 WAITFORCHAR PAD
+  BEGIN
+    KEY DUP 34 = OVER 10 = OR =0
+  WHILE
+    OVER C! 1+
+  REPEAT
+  DROP
+  [ hex ] 6100 W,
+  PAD - 1+ DUP 2+ 1+ -2 AND W, DUP 1- C,
+  DUP 1- 0 DO
+    PAD I + C@ C,
+  LOOP
+  1 AND IF 0 C, ENDIF
+  2b1f W,
+  ; IMMCODE
+
+(str ---)
+: strtype dup 1+ swap c@ type ;
+
+hex
+(STR ---)
+: STR2UPPER
+  DUP @ DUP =0 IF 
+    2DROP DROP RETURN
+  ENDIF
+  0 DO
+    1+ DUP C@
+    DUP 60 > OVER 7B < AND IF
+      20 - OVER C!
+    ENDIF
+  LOOP ;
+
+(STR ---)
+: STR2LOWER
+  DUP @ DUP =0 IF 
+    2DROP DROP RETURN
+  ENDIF
+  0 DO
+    1+ DUP C@
+    DUP 40 > OVER 5B < AND IF
+      20 + OVER C!
+    ENDIF
+  LOOP ;
+
+: SGN DUP <0 IF DROP -1 RETURN ENDIF >0 ;
+
+(STRA STRB ---)
+: STR= 
+  DUP C@ >R
+  BEGIN
+    OVER C@ OVER C@ - =0
+    R> 1- DUP >R <0 =0 AND
+  WHILE
+    1+ SWAP 1+ SWAP
+  REPEAT
+  2DROP R> <0
+  ;
+
+(STRA STRB ---[1:A<B 0:A=B -1:A>B])
+: STRCMP
+  OVER C@ OVER C@ MIN
+  1+ 1 DO
+    OVER I + C@ OVER I + C@ - DUP =0
+    IF
+      DROP
+      LOOP
+      0
+    ENDIF
+  DUP IF SGN >R 2DROP R> RETURN ELSE
+    DROP
+    C@ SWAP C@ - NEGATE SGN
+  ENDIF ;
+
+dec
+FORTH DEFINITIONS
+
